@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Base colors -->
+    <color name="black">#FF000000</color>
+    <color name="white">#FFFFFFFF</color>
+    <color name="red">#FFDC143C</color>
+    
+    <!-- Sistema Cidadao Activo - Sophisticated Black & White Theme -->
+    <color name="primary_color">#FF000000</color>
+    <color name="primary_dark">#FF1A1A1A</color>
+    <color name="primary_light">#FFF5F5F5</color>
+    <color name="secondary_color">#FF2C2C2C</color>
+    <color name="secondary_dark">#FF0D0D0D</color>
+    <color name="secondary_light">#FFF9F9F9</color>
+    
+    <!-- Gradient colors for modern effects -->
+    <color name="gradient_start">#FF000000</color>
+    <color name="gradient_mid">#FF1A1A1A</color>
+    <color name="gradient_end">#FF2C2C2C</color>
+    <color name="gradient_light_start">#FFFFFFFF</color>
+    <color name="gradient_light_mid">#FFF5F5F5</color>
+    <color name="gradient_light_end">#FFE8E8E8</color>
+    
+    <!-- Urgency Colors -->
+    <color name="urgent_color">#FF000000</color>
+    <color name="normal_color">#FF2C2C2C</color>
+    <color name="success_color">#FF2C2C2C</color>
+    
+    <!-- UI Colors with proper contrast -->
+    <color name="background_light">#FFFFFFFF</color>
+    <color name="background_dark">#FF000000</color>
+    <color name="surface_color">#FFFFFFFF</color>
+    <color name="surface_dark">#FF1A1A1A</color>
+    <color name="card_background">#FFFFFFFF</color>
+    <color name="card_shadow">#1A000000</color>
+    <color name="gray_text">#FF666666</color>
+    <color name="light_gray">#FFF0F0F0</color>
+    <color name="medium_gray">#FFCCCCCC</color>
+    <color name="dark_gray">#FF333333</color>
+    <color name="divider_color">#FFE0E0E0</color>
+    
+    <!-- Text Colors with proper contrast -->
+    <color name="text_primary">#FF000000</color>
+    <color name="text_secondary">#FF666666</color>
+    <color name="text_hint">#FF999999</color>
+    <color name="text_disabled">#FFCCCCCC</color>
+    <color name="text_on_dark">#FFFFFFFF</color>
+    <color name="text_on_light">#FF000000</color>
+    
+    <!-- Transparent colors -->
+    <color name="white_20">#33FFFFFF</color>
+    
+    <!-- Button colors -->
+    <color name="button_primary">#FF000000</color>
+    <color name="button_primary_pressed">#FF1A1A1A</color>
+    <color name="button_secondary">#FFFFFFFF</color>
+    <color name="button_secondary_pressed">#FFF5F5F5</color>
+    <color name="button_outline">#FF000000</color>
+    
+    <!-- Legacy colors updated with proper contrast -->
+    <color name="azulBebe">#FF000000</color>
+    <color name="azulFundoBotao">#FF000000</color>
+    <color name="azulFundoBotaoClicado">#FF1A1A1A</color>
+    <color name="azulFundoMsg">#FFF9F9F9</color>
+    <color name="cinza">#FF666666</color>
+    <color name="verde">#FF2C2C2C</color>
+    <color name="vermelho">#FF000000</color>
+    
+    <!-- Accent colors for highlights -->
+    <color name="accent_light">#FFF5F5F5</color>
+    <color name="accent_medium">#FFE8E8E8</color>
+    <color name="accent_dark">#FF2C2C2C</color>
+    
+    <!-- Transparency levels -->
+    <color name="overlay_light">#80FFFFFF</color>
+    <color name="overlay_dark">#80000000</color>
+    <color name="shadow_light">#1AFFFFFF</color>
+    <color name="shadow_dark">#1A000000</color>
+</resources>

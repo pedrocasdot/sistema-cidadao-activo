@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="200dp"
+    android:height="150dp"
+    android:viewportWidth="200"
+    android:viewportHeight="150">
+    
+    <!-- Background -->
+    <path
+        android:fillColor="#E3F2FD"
+        android:pathData="M0,0h200v150h-200z"/>
+    
+    <!-- Mountain silhouette -->
+    <path
+        android:fillColor="#90CAF9"
+        android:pathData="M0,100 L50,60 L100,80 L150,50 L200,70 L200,150 L0,150 Z"/>
+    
+    <!-- Sun (converted from circle to path) -->
+    <path
+        android:fillColor="#FFC107"
+        android:pathData="M160,25 C168.284,25 175,31.716 175,40 C175,48.284 168.284,55 160,55 C151.716,55 145,48.284 145,40 C145,31.716 151.716,25 160,25 Z"/>
+    
+    <!-- Cloud -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M30,50 C25,50 20,45 20,40 C20,35 25,30 30,30 C35,30 40,35 40,40 C45,40 50,45 50,50 C50,55 45,60 40,60 L30,60 C25,60 20,55 20,50"/>
+    
+    <!-- Camera icon to represent image -->
+    <path
+        android:fillColor="#666666"
+        android:pathData="M85,110 L115,110 C117.2,110 119,111.8 119,114 L119,126 C119,128.2 117.2,130 115,130 L85,130 C82.8,130 81,128.2 81,126 L81,114 C81,111.8 82.8,110 85,110 Z M88,113 L88,115 L112,115 L112,113 L88,113 Z M100,118 C104.4,118 108,121.6 108,126 C108,130.4 104.4,134 100,134 C95.6,134 92,130.4 92,126 C92,121.6 95.6,118 100,118 Z M100,121 C97.2,121 95,123.2 95,126 C95,128.8 97.2,131 100,131 C102.8,131 105,128.8 105,126 C105,123.2 102.8,121 100,121 Z"/>
+        
+</vector>

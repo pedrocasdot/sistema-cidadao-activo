@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ripple xmlns:android="http://schemas.android.com/apk/res/android"
+    android:color="?attr/colorControlHighlight">  <!-- Define a cor do ripple -->
+
+    <!-- Estado normal do botão -->
+    <item>
+        <shape android:shape="rectangle">
+            <!-- Cor de fundo -->
+            <solid android:color="@color/azulFundoBotao"/>
+
+            <!-- Bordas arredondadas -->
+            <corners android:radius="10dp"/>
+        </shape>
+    </item>
+
+</ripple>

@@ -1,0 +1,7 @@
+<resources>
+    <string name="app_name">Sistema Cidadao Activo</string>
+    <string name="p_estacao">Pesquise uma estação</string>
+    <string name="p_bicicleta">Pesquise uma bicicleta</string>
+    <string name="p_ciclista">Pesquise um ciclista pelo username</string>
+    <string name="port">10001</string>
+</resources>
