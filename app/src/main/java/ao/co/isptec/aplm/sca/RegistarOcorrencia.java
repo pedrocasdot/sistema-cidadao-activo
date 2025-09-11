@@ -92,12 +92,30 @@ public class RegistarOcorrencia extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_registar_ocorrencia);
+        // Setup toolbar as ActionBar and enable back (Up)
+        com.google.android.material.appbar.MaterialToolbar toolbar = findViewById(R.id.toolbar);
+        if (toolbar != null) {
+            setSupportActionBar(toolbar);
+            if (getSupportActionBar() != null) {
+                getSupportActionBar().setDisplayHomeAsUpEnabled(true);
+            }
+            toolbar.setNavigationOnClickListener(v -> onBackPressed());
+        }
 
         initializeViews();
         setupActivityResultLaunchers();
         setupApiService();
         setupLocation();
         loadUserSession();
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(android.view.MenuItem item) {
+        if (item.getItemId() == android.R.id.home) {
+            onBackPressed();
+            return true;
+        }
+        return super.onOptionsItemSelected(item);
     }
 
     private void initializeViews() {

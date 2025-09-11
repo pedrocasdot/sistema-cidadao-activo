@@ -9,6 +9,8 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import ao.co.isptec.aplm.sca.base.BaseP2PActivity;
+
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 
 import java.util.ArrayList;
@@ -30,7 +32,7 @@ import ao.co.isptec.aplm.sca.ui.SyncStatusView;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-public class ListarOcorrencias extends AppCompatActivity {
+public class ListarOcorrencias extends BaseP2PActivity {
 
     private static final String TAG = "ListarOcorrencias";
     
@@ -45,7 +47,7 @@ public class ListarOcorrencias extends AppCompatActivity {
     
     // Offline-first components
     private OcorrenciaRepository repository;
-    private OfflineFirstHelper offlineHelper;
+    // offlineHelper is inherited from BaseP2PActivity
     private SyncManager syncManager;
     private ExecutorService executorService;
     private SyncStatusView syncStatusView;
@@ -54,6 +56,16 @@ public class ListarOcorrencias extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_listar_ocorrencias);
+
+        // Setup toolbar as ActionBar and enable Up
+        androidx.appcompat.widget.Toolbar toolbar = findViewById(R.id.toolbar);
+        if (toolbar != null) {
+            setSupportActionBar(toolbar);
+            if (getSupportActionBar() != null) {
+                getSupportActionBar().setDisplayHomeAsUpEnabled(true);
+            }
+            toolbar.setNavigationOnClickListener(v -> onBackPressed());
+        }
 
         initializeViews();
         setupApiService();
@@ -77,7 +89,7 @@ public class ListarOcorrencias extends AppCompatActivity {
         
         // Initialize offline-first components
         repository = new OcorrenciaRepository(this);
-        offlineHelper = new OfflineFirstHelper(this);
+        // offlineHelper is initialized in BaseP2PActivity
         syncManager = SyncManager.getInstance(this);
         executorService = Executors.newSingleThreadExecutor();
         
@@ -182,5 +194,14 @@ public class ListarOcorrencias extends AppCompatActivity {
         }
         
         Log.d(TAG, "Activity destroyed, resources cleaned up");
+    }
+    
+    @Override
+    protected void onP2PStatusUpdated(String status, boolean isEnabled) {
+        super.onP2PStatusUpdated(status, isEnabled);
+        // Show P2P status in list activity
+        if (isEnabled) {
+            Toast.makeText(this, "Wi-Fi Direct ativado - Pronto para receber ocorrências", Toast.LENGTH_SHORT).show();
+        }
     }
 }

@@ -1,6 +1,7 @@
 package ao.co.isptec.aplm.sca.utils;
 
 import android.Manifest;
+import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
@@ -210,6 +211,7 @@ public class LocationHelper {
     /**
      * Obtém a última localização conhecida
      */
+    @SuppressLint("MissingPermission")
     public void getLastKnownLocation(LocationResultListener listener) {
         if (!hasLocationPermission()) {
             listener.onLocationError("Permissão de localização não concedida");

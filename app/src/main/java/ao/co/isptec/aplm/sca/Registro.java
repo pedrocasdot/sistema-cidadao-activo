@@ -39,6 +39,15 @@ public class Registro extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         EdgeToEdge.enable(this);
         setContentView(R.layout.activity_tela_registo);
+        // Setup toolbar as ActionBar and enable back (Up)
+        androidx.appcompat.widget.Toolbar toolbar = findViewById(R.id.toolbar);
+        if (toolbar != null) {
+            setSupportActionBar(toolbar);
+            if (getSupportActionBar() != null) {
+                getSupportActionBar().setDisplayHomeAsUpEnabled(true);
+            }
+            toolbar.setNavigationOnClickListener(v -> onBackPressed());
+        }
         
         setupWindowInsets();
         initializeViews();
@@ -46,6 +55,15 @@ public class Registro extends AppCompatActivity {
         setupUI();
         
         Log.d(TAG, "TelaRegisto initialized successfully");
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(android.view.MenuItem item) {
+        if (item.getItemId() == android.R.id.home) {
+            onBackPressed();
+            return true;
+        }
+        return super.onOptionsItemSelected(item);
     }
     
     private void setupWindowInsets() {

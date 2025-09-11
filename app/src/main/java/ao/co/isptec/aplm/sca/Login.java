@@ -18,8 +18,11 @@ import androidx.core.view.WindowInsetsCompat;
 
 import ao.co.isptec.aplm.sca.dto.LoginRequest;
 import ao.co.isptec.aplm.sca.dto.LoginResponse;
+import ao.co.isptec.aplm.sca.dto.IncidentResponse;
 import ao.co.isptec.aplm.sca.service.ApiService;
 import ao.co.isptec.aplm.sca.service.SessionManager;
+import ao.co.isptec.aplm.sca.offline.OfflineFirstHelper;
+import java.util.List;
 
 public class Login extends AppCompatActivity {
 
@@ -30,12 +33,22 @@ public class Login extends AppCompatActivity {
     private TextView tvLinkRegistrar;
     private ApiService apiService;
     private SessionManager sessionManager;
+    private OfflineFirstHelper offlineHelper;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         EdgeToEdge.enable(this);
         setContentView(R.layout.activity_tela_login);
+        // Setup toolbar as ActionBar and enable back (Up)
+        androidx.appcompat.widget.Toolbar toolbar = findViewById(R.id.toolbar);
+        if (toolbar != null) {
+            setSupportActionBar(toolbar);
+            if (getSupportActionBar() != null) {
+                getSupportActionBar().setDisplayHomeAsUpEnabled(true);
+            }
+            toolbar.setNavigationOnClickListener(v -> onBackPressed());
+        }
         
         setupWindowInsets();
         initializeViews();
@@ -44,6 +57,15 @@ public class Login extends AppCompatActivity {
         checkExistingSession();
         
         Log.d(TAG, "TelaLogin initialized successfully");
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(android.view.MenuItem item) {
+        if (item.getItemId() == android.R.id.home) {
+            onBackPressed();
+            return true;
+        }
+        return super.onOptionsItemSelected(item);
     }
     
     private void setupWindowInsets() {
@@ -63,6 +85,7 @@ public class Login extends AppCompatActivity {
     private void setupApiService() {
         apiService = new ApiService(this);
         sessionManager = apiService.getSessionManager();
+        offlineHelper = new OfflineFirstHelper(this);
         Log.d(TAG, "ApiService initialized");
     }
     
@@ -176,8 +199,8 @@ public class Login extends AppCompatActivity {
         // Session is already saved by ApiService, just show success message
         showSuccessMessage("Bem-vindo, " + loginResponse.getFullName() + "!");
         
-        // Navegar para tela principal
-        navigateToMainActivity();
+        // Sincronizar dados do usuário do servidor para a Room database
+        syncUserDataFromServer(loginResponse.getId());
     }
     
     /**
@@ -214,6 +237,113 @@ public class Login extends AppCompatActivity {
      */
     private void showSuccessMessage(String message) {
         Toast.makeText(this, message, Toast.LENGTH_SHORT).show();
+    }
+    
+    /**
+     * Sincroniza dados do usuário do servidor para a Room database
+     */
+    private void syncUserDataFromServer(long userId) {
+        Log.d(TAG, "Iniciando sincronização de dados do usuário: " + userId);
+        
+        try {
+            // Buscar ocorrências do usuário no servidor
+            apiService.getIncidentsByUser(userId, new ApiService.ApiCallback<List<IncidentResponse>>() {
+                @Override
+                public void onSuccess(List<IncidentResponse> incidents) {
+                    runOnUiThread(() -> {
+                        Log.d(TAG, "Recebidas " + incidents.size() + " ocorrências do servidor");
+                        
+                        // Salvar cada ocorrência na Room database
+                        for (IncidentResponse incident : incidents) {
+                            try {
+                                // Converter IncidentResponse para Ocorrencia
+                                ao.co.isptec.aplm.sca.model.Ocorrencia ocorrencia = convertIncidentResponseToOcorrencia(incident);
+                                
+                                // Salvar usando OfflineFirstHelper (que salva na Room)
+                                offlineHelper.saveReceivedSharedOcorrenciaAsync(
+                                    ocorrencia.getDescricao(),
+                                    ocorrencia.getLocalizacaoSimbolica(),
+                                    ocorrencia.getLatitude(),
+                                    ocorrencia.getLongitude(),
+                                    ocorrencia.isUrgente(),
+                                    ocorrencia.getFotoPath(),
+                                    ocorrencia.getVideoPath(),
+                                    localId -> Log.d(TAG, "Ocorrência sincronizada: " + incident.getDescription()),
+                                    error -> Log.e(TAG, "Erro ao sincronizar ocorrência: " + error)
+                                );
+                            } catch (Exception e) {
+                                Log.e(TAG, "Erro ao converter ocorrência: " + e.getMessage());
+                            }
+                        }
+                        
+                        // Após sincronização, navegar para tela principal
+                        navigateToMainActivity();
+                        
+                        if (incidents.size() > 0) {
+                            Toast.makeText(Login.this, 
+                                "Sincronizadas " + incidents.size() + " ocorrências", 
+                                Toast.LENGTH_SHORT).show();
+                        }
+                    });
+                }
+                
+                @Override
+                public void onError(String error) {
+                    runOnUiThread(() -> {
+                        Log.w(TAG, "Erro ao sincronizar dados do usuário: " + error);
+                        // Mesmo com erro na sincronização, permitir login
+                        navigateToMainActivity();
+                    });
+                }
+            });
+        } catch (Exception e) {
+            Log.e(TAG, "Erro durante sincronização", e);
+            // Em caso de erro, continuar com o login
+            navigateToMainActivity();
+        }
+    }
+    
+    /**
+     * Converte IncidentResponse do servidor para Ocorrencia local
+     */
+    private ao.co.isptec.aplm.sca.model.Ocorrencia convertIncidentResponseToOcorrencia(IncidentResponse incident) {
+        ao.co.isptec.aplm.sca.model.Ocorrencia ocorrencia = new ao.co.isptec.aplm.sca.model.Ocorrencia();
+        
+        // Mapear campos do servidor para modelo local
+        ocorrencia.setId(incident.getId().intValue()); // Convert Long to int
+        String description = "";
+        if (incident.getTitle() != null) {
+            description += incident.getTitle();
+        }
+        if (incident.getDescription() != null) {
+            if (!description.isEmpty()) description += "\n";
+            description += incident.getDescription();
+        }
+        ocorrencia.setDescricao(description);
+        ocorrencia.setLocalizacaoSimbolica(""); // No location field in IncidentResponse
+        ocorrencia.setLatitude(incident.getLatitude());
+        ocorrencia.setLongitude(incident.getLongitude());
+        
+        // Parse datetime string to Date
+        try {
+            java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss");
+            ocorrencia.setDataHora(sdf.parse(incident.getDatetime()));
+        } catch (Exception e) {
+            ocorrencia.setDataHora(new java.util.Date()); // Fallback to current date
+        }
+        
+        ocorrencia.setUrgente(incident.getUrgency());
+        ocorrencia.setContadorPartilha(0); // Resetar contador local
+        
+        // Paths de mídia (se disponíveis)
+        if (incident.getDbPhotoFilename() != null && !incident.getDbPhotoFilename().isEmpty()) {
+            ocorrencia.setFotoPath(incident.getDbPhotoFilename());
+        }
+        if (incident.getDbVideoFilename() != null && !incident.getDbVideoFilename().isEmpty()) {
+            ocorrencia.setVideoPath(incident.getDbVideoFilename());
+        }
+        
+        return ocorrencia;
     }
 
 }

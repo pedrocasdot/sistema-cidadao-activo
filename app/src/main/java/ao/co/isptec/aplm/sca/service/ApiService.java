@@ -109,6 +109,32 @@ public class ApiService {
             }
         });
     }
+    
+    /**
+     * Busca incidentes de um usuário específico
+     */
+    public void getIncidentsByUser(long userId, ApiCallback<List<IncidentResponse>> callback) {
+        Log.d(TAG, "Buscando incidentes do usuário: " + userId);
+        
+        incidentApi.getIncidentsByUser(userId).enqueue(new Callback<List<IncidentResponse>>() {
+            @Override
+            public void onResponse(Call<List<IncidentResponse>> call, Response<List<IncidentResponse>> response) {
+                if (response.isSuccessful() && response.body() != null) {
+                    Log.d(TAG, "Recebidos " + response.body().size() + " incidentes do usuário " + userId);
+                    callback.onSuccess(response.body());
+                } else {
+                    Log.w(TAG, "Erro ao carregar incidentes do usuário: " + response.code());
+                    callback.onError("Erro ao carregar incidentes do usuário");
+                }
+            }
+
+            @Override
+            public void onFailure(Call<List<IncidentResponse>> call, Throwable t) {
+                Log.e(TAG, "getIncidentsByUser error", t);
+                callback.onError("Falha de rede: " + t.getMessage());
+            }
+        });
+    }
 
     // Create incident with optional photo/video
     public void createOccurrence(NewIncidentRequest request,
@@ -203,6 +229,6 @@ public class ApiService {
     }
 
     private static String buildFileUrl(String filename) {
-        return "http://192.168.100.100:8081/incidents/files/" + filename;
+        return "http://171.20.10.5:8081/incidents/files/" + filename;
     }
 }

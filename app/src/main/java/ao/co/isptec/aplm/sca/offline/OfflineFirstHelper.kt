@@ -329,6 +329,62 @@ class OfflineFirstHelper(private val context: Context) {
     }
     
     /**
+     * Update share counter for an existing ocorrencia
+     */
+    fun updateShareCounter(
+        id: Long,
+        newShareCount: Int,
+        onSuccess: () -> Unit,
+        onError: (String) -> Unit
+    ) {
+        ioScope.launch {
+            try {
+                val existingEntity = repository.getOcorrenciaById(id)
+                if (existingEntity != null) {
+                    val updatedEntity = existingEntity.copy(
+                        contadorPartilha = newShareCount,
+                        updatedAt = Date()
+                    )
+                    repository.updateOcorrencia(updatedEntity)
+                    
+                    Log.d(TAG, "Share counter updated for ocorrencia $id: $newShareCount")
+                    
+                    withContext(Dispatchers.Main) {
+                        onSuccess()
+                    }
+                } else {
+                    Log.e(TAG, "Ocorrencia not found with ID: $id")
+                    withContext(Dispatchers.Main) {
+                        onError("Ocorrência não encontrada")
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error updating share counter", e)
+                withContext(Dispatchers.Main) {
+                    onError("Erro ao atualizar contador: ${e.message}")
+                }
+            }
+        }
+    }
+    
+    /**
+     * Java-friendly async variant for updating share counter
+     */
+    fun updateShareCounterAsync(
+        id: Long,
+        newShareCount: Int,
+        onSuccess: Runnable?,
+        onError: Consumer<String>?
+    ) {
+        updateShareCounter(
+            id = id,
+            newShareCount = newShareCount,
+            onSuccess = { onSuccess?.run() },
+            onError = { error -> onError?.accept(error) }
+        )
+    }
+
+    /**
      * Force sync all unsynced ocorrencias
      */
     fun forceSyncAll() {

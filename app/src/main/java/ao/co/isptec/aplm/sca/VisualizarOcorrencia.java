@@ -61,6 +61,7 @@ import ao.co.isptec.aplm.sca.security.CryptoUtils;
 
 import com.squareup.picasso.Picasso;
 import ao.co.isptec.aplm.sca.offline.OfflineFirstHelper;
+import ao.co.isptec.aplm.sca.database.entity.OcorrenciaEntity;
 
 public class VisualizarOcorrencia extends AppCompatActivity implements OnMapReadyCallback, 
         PeerListListener, GroupInfoListener, P2PCommManager.P2PMessageListener {
@@ -101,6 +102,15 @@ public class VisualizarOcorrencia extends AppCompatActivity implements OnMapRead
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_visualizar_ocorrencia);
+        // Setup toolbar as ActionBar and enable back (Up)
+        com.google.android.material.appbar.MaterialToolbar toolbar = findViewById(R.id.toolbar);
+        if (toolbar != null) {
+            setSupportActionBar(toolbar);
+            if (getSupportActionBar() != null) {
+                getSupportActionBar().setDisplayHomeAsUpEnabled(true);
+            }
+            toolbar.setNavigationOnClickListener(v -> onBackPressed());
+        }
 
         sessionManager = new SessionManager(this);
         apiService = new ApiService(this);
@@ -125,14 +135,21 @@ public class VisualizarOcorrencia extends AppCompatActivity implements OnMapRead
         dateFormat = new SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault());
         
         if (ocorrencia != null) {
-            populateViews();
-            setupMap();
-            setupButtons();
-            initializeP2P();
+            // Reload from database to get updated share counter
+            reloadOcorrenciaFromDatabase();
         } else {
             Toast.makeText(this, "Ocorrência não encontrada", Toast.LENGTH_SHORT).show();
             finish();
         }
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(android.view.MenuItem item) {
+        if (item.getItemId() == android.R.id.home) {
+            onBackPressed();
+            return true;
+        }
+        return super.onOptionsItemSelected(item);
     }
 
     /**
@@ -592,19 +609,27 @@ public class VisualizarOcorrencia extends AppCompatActivity implements OnMapRead
             return;
         }
         
-        // Create device names array
+        // Create device names array with user information
         String[] deviceNames = new String[deviceList.size()];
+        String currentUser = sessionManager.getFullName() != null ? 
+            sessionManager.getFullName() : sessionManager.getUsername();
+        
         for (int i = 0; i < deviceList.size(); i++) {
             SimWifiP2pDevice device = deviceList.get(i);
-            deviceNames[i] = device.deviceName + " (" + device.getVirtIp() + ")";
+            String deviceInfo = device.deviceName + " (" + device.getVirtIp() + ")";
+            String userInfo = "Usuário: " + (currentUser != null ? currentUser : "Desconhecido");
+            deviceNames[i] = deviceInfo + "\n" + userInfo;
         }
         
         new AlertDialog.Builder(this)
-            .setTitle("Partilhar com Dispositivo")
+            .setTitle("Selecionar Dispositivo para Partilha")
             .setItems(deviceNames, (dialog, which) -> {
                 SimWifiP2pDevice selectedDevice = deviceList.get(which);
-                // Keep recipient info for email notification
-                lastRecipientName = selectedDevice.deviceName != null ? selectedDevice.deviceName : selectedDevice.getVirtIp();
+                // Keep recipient info for email notification (include user info)
+                String currentUserName = sessionManager.getFullName() != null ? 
+                    sessionManager.getFullName() : sessionManager.getUsername();
+                lastRecipientName = (selectedDevice.deviceName != null ? selectedDevice.deviceName : selectedDevice.getVirtIp()) + 
+                    " (" + (currentUserName != null ? currentUserName : "Usuário Desconhecido") + ")";
                 // Ask for passphrase before starting connection
                 promptForPassphrase(pass -> {
                     sharePassphrase = pass;
@@ -674,15 +699,25 @@ public class VisualizarOcorrencia extends AppCompatActivity implements OnMapRead
                     progressDialog.dismiss();
                     
                     if (finalSuccess) {
-                        // Update share counter
-                        ocorrencia.incrementarPartilha();
-                        updateShareCounterUI();
-                        
-                        // Show success message
-                        showSuccessDialog("Sucesso", "Ocorrência partilhada com sucesso!");
-                    } else {
-                        // Show error message
-                        showErrorDialog("Falha na Partilha", 
+                    // Update share counter
+                    ocorrencia.incrementarPartilha();
+                    updateShareCounterUI();
+                    
+                    // Save updated counter to database
+                    if (ocorrencia.getId() > 0) {
+                        offlineHelper.updateShareCounterAsync(
+                            ocorrencia.getId(),
+                            ocorrencia.getContadorPartilha(),
+                            () -> Log.d("P2P_Share", "Share counter updated in database"),
+                            error -> Log.e("P2P_Share", "Error updating share counter: " + error)
+                        );
+                    }
+                    
+                    // Show success message
+                    showSuccessDialog("Sucesso", "Ocorrência partilhada com sucesso!");
+                } else {
+                    // Show error message
+                    showErrorDialog("Falha na Partilha", 
                             finalErrorMessage != null ? finalErrorMessage : 
                             "Não foi possível partilhar a ocorrência. Tente novamente.");
                     }
@@ -740,6 +775,36 @@ public class VisualizarOcorrencia extends AppCompatActivity implements OnMapRead
     private void updateShareCounterUI() {
         if (textContadorPartilha != null) {
             textContadorPartilha.setText("Partilhado " + ocorrencia.getContadorPartilha() + " vez(es)");
+        }
+    }
+    
+    /**
+     * Reload ocorrencia from database to get updated share counter
+     */
+    private void reloadOcorrenciaFromDatabase() {
+        if (ocorrencia != null && ocorrencia.getId() > 0) {
+            // Try to reload from database to get updated counter
+            offlineHelper.getAllOcorrenciasAsync(ocorrenciasList -> {
+                for (OcorrenciaEntity entity : ocorrenciasList) {
+                    if (entity.getId() == ocorrencia.getId()) {
+                        // Update the current ocorrencia with database values
+                        ocorrencia.setContadorPartilha(entity.getContadorPartilha());
+                        break;
+                    }
+                }
+                
+                // Continue with normal initialization
+                populateViews();
+                setupMap();
+                setupButtons();
+                initializeP2P();
+            });
+        } else {
+            // If no ID, continue with normal initialization
+            populateViews();
+            setupMap();
+            setupButtons();
+            initializeP2P();
         }
     }
     
@@ -915,10 +980,15 @@ public class VisualizarOcorrencia extends AppCompatActivity implements OnMapRead
         
         // Update group information
         StringBuilder groupStr = new StringBuilder();
+        String currentUser = sessionManager.getFullName() != null ? 
+            sessionManager.getFullName() : sessionManager.getUsername();
+            
         for (String deviceName : groupInfo.getDevicesInNetwork()) {
             SimWifiP2pDevice device = devices.getByName(deviceName);
-            String devstr = deviceName + " (" + 
-                ((device == null) ? "??" : device.getVirtIp()) + ")\n";
+            String deviceInfo = deviceName + " (" + 
+                ((device == null) ? "??" : device.getVirtIp()) + ")";
+            String userInfo = "Usuário: " + (currentUser != null ? currentUser : "Desconhecido");
+            String devstr = deviceInfo + "\n" + userInfo + "\n\n";
             groupStr.append(devstr);
         }
         
@@ -942,8 +1012,14 @@ public class VisualizarOcorrencia extends AppCompatActivity implements OnMapRead
         }
         
         StringBuilder peersStr = new StringBuilder();
+        String currentUser = sessionManager.getFullName() != null ? 
+            sessionManager.getFullName() : sessionManager.getUsername();
+        
         for (SimWifiP2pDevice device : deviceList) {
-            String devstr = device.deviceName + " (" + device.getVirtIp() + ")\n";
+            // Incluir informações do usuário junto com o dispositivo
+            String deviceInfo = device.deviceName + " (" + device.getVirtIp() + ")";
+            String userInfo = "Usuário: " + (currentUser != null ? currentUser : "Desconhecido");
+            String devstr = deviceInfo + "\n" + userInfo + "\n\n";
             peersStr.append(devstr);
         }
         

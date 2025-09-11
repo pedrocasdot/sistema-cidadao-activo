@@ -13,6 +13,8 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 
+import ao.co.isptec.aplm.sca.base.BaseP2PActivity;
+
 import ao.co.isptec.aplm.sca.utils.LocationHelper;
 import com.google.android.gms.maps.CameraUpdate;
 import com.google.android.gms.maps.CameraUpdateFactory;
@@ -44,7 +46,7 @@ import java.util.function.Consumer;
 import java.util.function.IntConsumer;
 import ao.co.isptec.aplm.sca.offline.OfflineFirstHelper;
 
-public class TelaMapaOcorrencias extends AppCompatActivity implements OnMapReadyCallback, GoogleMap.OnMarkerClickListener {
+public class TelaMapaOcorrencias extends BaseP2PActivity implements OnMapReadyCallback, GoogleMap.OnMarkerClickListener {
 
     private static final String TAG = "TelaMapaOcorrencias";
     private static final int REQUEST_LOCATION_PERMISSION = 1;
@@ -62,7 +64,6 @@ public class TelaMapaOcorrencias extends AppCompatActivity implements OnMapReady
     private OcorrenciaRepository repository;
     private SyncManager syncManager;
     private ExecutorService executorService;
-    private OfflineFirstHelper offlineHelper;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -92,7 +93,7 @@ public class TelaMapaOcorrencias extends AppCompatActivity implements OnMapReady
         repository = new OcorrenciaRepository(this);
         syncManager = SyncManager.getInstance(this);
         executorService = Executors.newSingleThreadExecutor();
-        offlineHelper = new OfflineFirstHelper(this);
+        // offlineHelper is initialized in BaseP2PActivity
         
         Log.d(TAG, "API services and offline components initialized for map");
         
@@ -480,6 +481,15 @@ public class TelaMapaOcorrencias extends AppCompatActivity implements OnMapReady
         // Reload incidents when returning from other activities
         if (mMap != null) {
             loadOcorrenciasOnMap();
+        }
+    }
+    
+    @Override
+    protected void onP2PStatusUpdated(String status, boolean isEnabled) {
+        super.onP2PStatusUpdated(status, isEnabled);
+        // Show P2P status on map activity
+        if (isEnabled) {
+            Toast.makeText(this, "Wi-Fi Direct ativado - Pronto para receber ocorrências", Toast.LENGTH_SHORT).show();
         }
     }
 }
