@@ -151,7 +151,7 @@ echo "MAPS_API_KEY=your_google_maps_api_key" >> local.properties
 #### 4. Build and Run
 1. Open the project in Android Studio
 2. Sync Gradle files
-3. Run the app on device or emulator
+3. Run the app on device or emulator, but for P2P test you must use emulator avd or genymotion
 
 ## 📱 Usage
 
