@@ -4,8 +4,7 @@ import retrofit2.Retrofit;
 import retrofit2.converter.gson.GsonConverterFactory;
 
 public class ApiClient {
-    // Use 10.0.2.2 for Android emulator to access host machine localhost
-    // Updated to device/host IP provided by user
+
     private static final String BASE_URL = "http://172.20.10.5:8081/";
     private static Retrofit retrofit;
 

@@ -1,9 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.coordinatorlayout.widget.CoordinatorLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical"
     android:background="@color/background_light">
 
     <com.google.android.material.appbar.AppBarLayout
@@ -13,15 +12,17 @@
         <com.google.android.material.appbar.MaterialToolbar
             android:id="@+id/toolbar"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            app:title="Registar Ocorrência" />
+            android:layout_height="?attr/actionBarSize"
+            android:background="@color/primary_color"
+            app:title="Registar Ocorrência"
+            app:titleTextColor="@color/white" />
     </com.google.android.material.appbar.AppBarLayout>
 
-    <ScrollView
+    <androidx.core.widget.NestedScrollView
         android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="1"
-        android:padding="16dp">
+        android:layout_height="match_parent"
+        android:padding="@dimen/activity_horizontal_margin"
+        app:layout_behavior="@string/appbar_scrolling_view_behavior">
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -32,23 +33,23 @@
         <androidx.cardview.widget.CardView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginBottom="24dp"
-            app:cardCornerRadius="16dp"
-            app:cardElevation="4dp"
+            android:layout_marginBottom="@dimen/spacing_xlarge"
+            app:cardCornerRadius="@dimen/card_corner_radius"
+            app:cardElevation="@dimen/card_elevation"
             android:backgroundTint="@color/primary_color">
 
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
-                android:padding="20dp"
+                android:padding="@dimen/spacing_large"
                 android:gravity="center_vertical">
 
                 <ImageView
-                    android:layout_width="32dp"
-                    android:layout_height="32dp"
+                    android:layout_width="@dimen/icon_size_large"
+                    android:layout_height="@dimen/icon_size_large"
                     android:src="@drawable/ic_report"
-                    android:layout_marginEnd="16dp"
+                    android:layout_marginEnd="@dimen/spacing_large"
                     app:tint="@color/white" />
 
                 <TextView
@@ -56,7 +57,7 @@
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
                     android:text="Registar Nova Ocorrência"
-                    android:textSize="20sp"
+                    android:textSize="@dimen/text_size_xlarge"
                     android:textStyle="bold"
                     android:textColor="@color/white" />
 
@@ -68,33 +69,33 @@
         <androidx.cardview.widget.CardView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginBottom="20dp"
-            app:cardCornerRadius="12dp"
+            android:layout_marginBottom="@dimen/spacing_large"
+            app:cardCornerRadius="@dimen/card_corner_radius"
             app:cardElevation="2dp">
 
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
-                android:padding="16dp">
+                android:padding="@dimen/spacing_large">
 
                 <TextView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:text="Descrição da Ocorrência"
-                    android:textSize="16sp"
+                    android:textSize="@dimen/text_size_large"
                     android:textStyle="bold"
                     android:textColor="@color/primary_color"
-                    android:layout_marginBottom="12dp" />
+                    android:layout_marginBottom="@dimen/spacing_medium" />
 
                 <com.google.android.material.textfield.TextInputLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
-                    app:boxCornerRadiusTopStart="8dp"
-                    app:boxCornerRadiusTopEnd="8dp"
-                    app:boxCornerRadiusBottomStart="8dp"
-                    app:boxCornerRadiusBottomEnd="8dp">
+                    app:boxCornerRadiusTopStart="@dimen/input_field_corner_radius"
+                    app:boxCornerRadiusTopEnd="@dimen/input_field_corner_radius"
+                    app:boxCornerRadiusBottomStart="@dimen/input_field_corner_radius"
+                    app:boxCornerRadiusBottomEnd="@dimen/input_field_corner_radius">
 
                     <com.google.android.material.textfield.TextInputEditText
                         android:id="@+id/editDescricao"
@@ -104,7 +105,9 @@
                         android:minLines="4"
                         android:maxLines="6"
                         android:gravity="top|start"
-                        android:inputType="textMultiLine" />
+                        android:inputType="textMultiLine"
+                        android:textSize="@dimen/text_size_medium"
+                        android:padding="@dimen/spacing_medium" />
 
                 </com.google.android.material.textfield.TextInputLayout>
 
@@ -116,35 +119,35 @@
         <androidx.cardview.widget.CardView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginBottom="20dp"
-            app:cardCornerRadius="12dp"
+            android:layout_marginBottom="@dimen/spacing_large"
+            app:cardCornerRadius="@dimen/card_corner_radius"
             app:cardElevation="2dp">
 
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
-                android:padding="16dp">
+                android:padding="@dimen/spacing_large">
 
                 <TextView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:text="Localização Atual"
-                    android:textSize="16sp"
+                    android:textSize="@dimen/text_size_large"
                     android:textStyle="bold"
                     android:textColor="@color/primary_color"
-                    android:layout_marginBottom="12dp" />
+                    android:layout_marginBottom="@dimen/spacing_medium" />
 
                 <TextView
                     android:id="@+id/textLocationStatus"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:text="Obtendo localização atual..."
-                    android:textSize="14sp"
+                    android:textSize="@dimen/text_size_medium"
                     android:textColor="@color/gray_text"
-                    android:padding="12dp"
+                    android:padding="@dimen/spacing_medium"
                     android:background="@drawable/rounded_background"
-                    android:drawablePadding="8dp" />
+                    android:drawablePadding="@dimen/spacing_medium" />
 
             </LinearLayout>
 
@@ -154,24 +157,24 @@
         <androidx.cardview.widget.CardView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginBottom="20dp"
-            app:cardCornerRadius="12dp"
+            android:layout_marginBottom="@dimen/spacing_large"
+            app:cardCornerRadius="@dimen/card_corner_radius"
             app:cardElevation="2dp">
 
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
-                android:padding="16dp">
+                android:padding="@dimen/spacing_large">
 
                 <TextView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:text="Nível de Urgência"
-                    android:textSize="16sp"
+                    android:textSize="@dimen/text_size_large"
                     android:textStyle="bold"
                     android:textColor="@color/primary_color"
-                    android:layout_marginBottom="16dp" />
+                    android:layout_marginBottom="@dimen/spacing_large" />
 
                 <RadioGroup
                     android:id="@+id/radioGroupUrgencia"
@@ -182,20 +185,22 @@
                     <com.google.android.material.radiobutton.MaterialRadioButton
                         android:id="@+id/radioUrgente"
                         android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
+                        android:layout_height="@dimen/button_height"
                         android:text="🔴 Urgente"
                         android:textColor="@color/urgent_color"
                         android:textStyle="bold"
-                        android:padding="12dp"
-                        android:layout_marginBottom="8dp" />
+                        android:textSize="@dimen/text_size_medium"
+                        android:padding="@dimen/spacing_medium"
+                        android:layout_marginBottom="@dimen/spacing_medium" />
 
                     <com.google.android.material.radiobutton.MaterialRadioButton
                         android:id="@+id/radioNaoUrgente"
                         android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
+                        android:layout_height="@dimen/button_height"
                         android:text="🟡 Não Urgente"
                         android:textColor="@color/normal_color"
-                        android:padding="12dp"
+                        android:textSize="@dimen/text_size_medium"
+                        android:padding="@dimen/spacing_medium"
                         android:checked="true" />
 
                 </RadioGroup>
@@ -204,100 +209,123 @@
 
         </androidx.cardview.widget.CardView>
 
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Capturar Evidência:"
-            android:textSize="16sp"
-            android:textStyle="bold"
-            android:layout_marginBottom="8dp" />
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:layout_marginBottom="16dp">
-
-            <Button
-                android:id="@+id/btnTirarFoto"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="Tirar Foto"
-                android:layout_marginEnd="8dp"
-                android:drawableTop="@drawable/ic_camera"
-                android:drawablePadding="8dp"
-                style="@style/Widget.MaterialComponents.Button.OutlinedButton" />
-
-            <Button
-                android:id="@+id/btnGravarVideo"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="Gravar Vídeo"
-                android:layout_marginStart="8dp"
-                android:drawableTop="@drawable/ic_videocam"
-                android:drawablePadding="8dp"
-                style="@style/Widget.MaterialComponents.Button.OutlinedButton" />
-
-        </LinearLayout>
-
+        <!-- Evidence Section -->
         <androidx.cardview.widget.CardView
             android:layout_width="match_parent"
-            android:layout_height="200dp"
-            android:layout_marginBottom="16dp"
-            app:cardCornerRadius="8dp"
-            app:cardElevation="4dp">
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="@dimen/spacing_large"
+            app:cardCornerRadius="@dimen/card_corner_radius"
+            app:cardElevation="2dp">
 
-            <FrameLayout
+            <LinearLayout
                 android:layout_width="match_parent"
-                android:layout_height="match_parent">
-
-                <ImageView
-                    android:id="@+id/imageViewFoto"
-                    android:layout_width="match_parent"
-                    android:layout_height="match_parent"
-                    android:scaleType="centerCrop"
-                    android:visibility="gone"
-                    android:contentDescription="Foto da ocorrência" />
-
-                <VideoView
-                    android:id="@+id/videoViewVideo"
-                    android:layout_width="match_parent"
-                    android:layout_height="match_parent"
-                    android:visibility="gone" />
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="@dimen/spacing_large">
 
                 <TextView
                     android:layout_width="match_parent"
-                    android:layout_height="match_parent"
-                    android:text="Nenhuma evidência capturada"
-                    android:gravity="center"
-                    android:textColor="@color/gray_text"
-                    android:background="@color/light_gray" />
+                    android:layout_height="wrap_content"
+                    android:text="Capturar Evidência"
+                    android:textSize="@dimen/text_size_large"
+                    android:textStyle="bold"
+                    android:textColor="@color/primary_color"
+                    android:layout_marginBottom="@dimen/spacing_medium" />
 
-            </FrameLayout>
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:layout_marginBottom="@dimen/spacing_medium">
+
+                    <Button
+                        android:id="@+id/btnTirarFoto"
+                        android:layout_width="0dp"
+                        android:layout_height="@dimen/button_height"
+                        android:layout_weight="1"
+                        android:text="Tirar Foto"
+                        android:textSize="@dimen/text_size_medium"
+                        android:layout_marginEnd="@dimen/spacing_medium"
+                        android:drawableTop="@drawable/ic_camera"
+                        android:drawablePadding="@dimen/spacing_medium"
+                        style="@style/Widget.MaterialComponents.Button.OutlinedButton" />
+
+                    <Button
+                        android:id="@+id/btnGravarVideo"
+                        android:layout_width="0dp"
+                        android:layout_height="@dimen/button_height"
+                        android:layout_weight="1"
+                        android:text="Gravar Vídeo"
+                        android:textSize="@dimen/text_size_medium"
+                        android:layout_marginStart="@dimen/spacing_medium"
+                        android:drawableTop="@drawable/ic_videocam"
+                        android:drawablePadding="@dimen/spacing_medium"
+                        style="@style/Widget.MaterialComponents.Button.OutlinedButton" />
+
+                </LinearLayout>
+
+                <androidx.cardview.widget.CardView
+                    android:layout_width="match_parent"
+                    android:layout_height="200dp"
+                    android:layout_marginBottom="@dimen/spacing_medium"
+                    app:cardCornerRadius="@dimen/card_corner_radius"
+                    app:cardElevation="@dimen/card_elevation">
+
+                    <FrameLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent">
+
+                        <ImageView
+                            android:id="@+id/imageViewFoto"
+                            android:layout_width="match_parent"
+                            android:layout_height="match_parent"
+                            android:scaleType="centerCrop"
+                            android:visibility="gone"
+                            android:contentDescription="Foto da ocorrência" />
+
+                        <VideoView
+                            android:id="@+id/videoViewVideo"
+                            android:layout_width="match_parent"
+                            android:layout_height="match_parent"
+                            android:visibility="gone" />
+
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="match_parent"
+                            android:text="Nenhuma evidência capturada"
+                            android:gravity="center"
+                            android:textColor="@color/gray_text"
+                            android:textSize="@dimen/text_size_medium"
+                            android:background="@color/light_gray" />
+
+                    </FrameLayout>
+
+                </androidx.cardview.widget.CardView>
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Localização será capturada automaticamente via GPS"
+                    android:textSize="@dimen/text_size_small"
+                    android:textColor="@color/gray_text"
+                    android:gravity="center" />
+
+            </LinearLayout>
 
         </androidx.cardview.widget.CardView>
-
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Localização será capturada automaticamente via GPS"
-            android:textSize="12sp"
-            android:textColor="@color/gray_text"
-            android:layout_marginBottom="24dp"
-            android:gravity="center" />
 
         <Button
             android:id="@+id/btnSalvar"
             android:layout_width="match_parent"
-            android:layout_height="56dp"
+            android:layout_height="@dimen/button_height"
+            android:layout_marginTop="@dimen/spacing_large"
             android:text="Registar Ocorrência"
-            android:textSize="16sp"
+            android:textSize="@dimen/text_size_large"
             android:textStyle="bold"
             style="@style/Widget.MaterialComponents.Button" />
 
     </LinearLayout>
 
-    </ScrollView>
-</LinearLayout>
+    </androidx.core.widget.NestedScrollView>
+
+</androidx.coordinatorlayout.widget.CoordinatorLayout>

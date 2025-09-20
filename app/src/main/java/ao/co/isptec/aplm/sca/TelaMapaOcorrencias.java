@@ -1,9 +1,15 @@
 package ao.co.isptec.aplm.sca;
 
 import android.Manifest;
+import android.content.ComponentName;
+import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
+import android.content.ServiceConnection;
 import android.content.pm.PackageManager;
 import android.os.Bundle;
+import android.os.IBinder;
+import android.os.Messenger;
 import android.util.Log;
 import android.widget.Toast;
 
@@ -12,8 +18,6 @@ import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
-
-import ao.co.isptec.aplm.sca.base.BaseP2PActivity;
 
 import ao.co.isptec.aplm.sca.utils.LocationHelper;
 import com.google.android.gms.maps.CameraUpdate;
@@ -28,8 +32,12 @@ import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 
+import java.io.File;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
+import android.util.Base64;
 
 import ao.co.isptec.aplm.sca.model.Ocorrencia;
 import ao.co.isptec.aplm.sca.service.ApiService;
@@ -46,7 +54,25 @@ import java.util.function.Consumer;
 import java.util.function.IntConsumer;
 import ao.co.isptec.aplm.sca.offline.OfflineFirstHelper;
 
-public class TelaMapaOcorrencias extends BaseP2PActivity implements OnMapReadyCallback, GoogleMap.OnMarkerClickListener {
+// WiFi Direct P2P imports
+import pt.inesc.termite.wifidirect.SimWifiP2pBroadcast;
+import pt.inesc.termite.wifidirect.SimWifiP2pDevice;
+import pt.inesc.termite.wifidirect.SimWifiP2pDeviceList;
+import pt.inesc.termite.wifidirect.SimWifiP2pInfo;
+import pt.inesc.termite.wifidirect.SimWifiP2pManager;
+import pt.inesc.termite.wifidirect.SimWifiP2pManager.Channel;
+import pt.inesc.termite.wifidirect.SimWifiP2pManager.PeerListListener;
+import pt.inesc.termite.wifidirect.SimWifiP2pManager.GroupInfoListener;
+import pt.inesc.termite.wifidirect.service.SimWifiP2pService;
+import pt.inesc.termite.wifidirect.sockets.SimWifiP2pSocketManager;
+
+import ao.co.isptec.aplm.sca.security.CryptoUtils;
+
+import org.json.JSONObject;
+import org.json.JSONException;
+
+public class TelaMapaOcorrencias extends AppCompatActivity implements OnMapReadyCallback, GoogleMap.OnMarkerClickListener, 
+        PeerListListener, GroupInfoListener, P2PCommManager.P2PMessageListener, SimWifiP2pBroadcastReceiver.P2PStatusCallback {
 
     private static final String TAG = "TelaMapaOcorrencias";
     private static final int REQUEST_LOCATION_PERMISSION = 1;
@@ -64,6 +90,17 @@ public class TelaMapaOcorrencias extends BaseP2PActivity implements OnMapReadyCa
     private OcorrenciaRepository repository;
     private SyncManager syncManager;
     private ExecutorService executorService;
+    private OfflineFirstHelper offlineHelper;
+    
+    // WiFi Direct P2P components
+    private SimWifiP2pManager mManager = null;
+    private Channel mChannel = null;
+    private Messenger mService = null;
+    private boolean mBound = false;
+    private SimWifiP2pBroadcastReceiver mReceiver;
+    private P2PCommManager mCommManager;
+    private List<SimWifiP2pDevice> mPeers = new ArrayList<>();
+    private String sharePassphrase; // Used to encrypt/decrypt P2P payloads
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -76,6 +113,9 @@ public class TelaMapaOcorrencias extends BaseP2PActivity implements OnMapReadyCa
         setupButtons();
         
         locationHelper = new LocationHelper(this);
+        
+        // Initialize P2P components
+        initializeP2P();
     }
 
     private void initializeViews() {
@@ -93,7 +133,7 @@ public class TelaMapaOcorrencias extends BaseP2PActivity implements OnMapReadyCa
         repository = new OcorrenciaRepository(this);
         syncManager = SyncManager.getInstance(this);
         executorService = Executors.newSingleThreadExecutor();
-        // offlineHelper is initialized in BaseP2PActivity
+        offlineHelper = new OfflineFirstHelper(this);
         
         Log.d(TAG, "API services and offline components initialized for map");
         
@@ -181,22 +221,7 @@ public class TelaMapaOcorrencias extends BaseP2PActivity implements OnMapReadyCa
 
 
 
-    @Override
-    protected void onDestroy() {
-        super.onDestroy();
-        
-        // Cleanup location helper
-        if (locationHelper != null) {
-            locationHelper.onDestroy();
-        }
-        
-        // Cleanup executor service
-        if (executorService != null && !executorService.isShutdown()) {
-            executorService.shutdown();
-        }
-        
-        Log.d(TAG, "Activity destroyed, resources cleaned up");
-    }
+
 
     private void enableMyLocation() {
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
@@ -484,12 +509,381 @@ public class TelaMapaOcorrencias extends BaseP2PActivity implements OnMapReadyCa
         }
     }
     
+    // ========== P2P Implementation Methods ==========
+    
+    /**
+     * Service connection for WiFi P2P
+     */
+    private ServiceConnection mConnection = new ServiceConnection() {
+        @Override
+        public void onServiceConnected(ComponentName className, IBinder service) {
+            mService = new Messenger(service);
+            mManager = new SimWifiP2pManager(mService);
+            mChannel = mManager.initialize(getApplication(), getMainLooper(), null);
+            mBound = true;
+            
+            // Register broadcast receiver after service is connected
+            if (mReceiver == null) {
+                mReceiver = new SimWifiP2pBroadcastReceiver(mManager, mChannel, TelaMapaOcorrencias.this);
+                IntentFilter filter = new IntentFilter();
+                filter.addAction(SimWifiP2pBroadcast.WIFI_P2P_STATE_CHANGED_ACTION);
+                filter.addAction(SimWifiP2pBroadcast.WIFI_P2P_PEERS_CHANGED_ACTION);
+                filter.addAction(SimWifiP2pBroadcast.WIFI_P2P_NETWORK_MEMBERSHIP_CHANGED_ACTION);
+                filter.addAction(SimWifiP2pBroadcast.WIFI_P2P_GROUP_OWNERSHIP_CHANGED_ACTION);
+                registerReceiver(mReceiver, filter);
+            }
+            
+            Log.d(TAG, "P2P Service connected");
+            Toast.makeText(TelaMapaOcorrencias.this, "Wi-Fi Direct ativado - Pronto para receber ocorrências", Toast.LENGTH_SHORT).show();
+        }
+        
+        @Override
+        public void onServiceDisconnected(ComponentName arg0) {
+            mService = null;
+            mManager = null;
+            mChannel = null;
+            mBound = false;
+            Log.d(TAG, "P2P Service disconnected");
+        }
+    };
+    
+    /**
+     * Inicializa os componentes WiFi Direct P2P
+     */
+    private void initializeP2P() {
+        Log.d(TAG, "Initializing P2P components");
+        
+        // Initialize SimWifiP2pSocketManager
+        SimWifiP2pSocketManager.Init(getApplicationContext());
+        
+        // Initialize communication manager
+        mCommManager = new P2PCommManager(this);
+        
+        // Start WiFi P2P service
+        Intent intent = new Intent(this, SimWifiP2pService.class);
+        bindService(intent, mConnection, Context.BIND_AUTO_CREATE);
+        mBound = true;
+        
+        // Start communication server
+        mCommManager.startServer();
+        
+        Log.d(TAG, "P2P initialization completed");
+    }
+    
+    // ========== P2P Listener Methods ==========
+    
     @Override
-    protected void onP2PStatusUpdated(String status, boolean isEnabled) {
-        super.onP2PStatusUpdated(status, isEnabled);
-        // Show P2P status on map activity
-        if (isEnabled) {
-            Toast.makeText(this, "Wi-Fi Direct ativado - Pronto para receber ocorrências", Toast.LENGTH_SHORT).show();
+    public void updateP2PStatus(String status, boolean isEnabled) {
+        Log.d(TAG, "P2P Status updated: " + status + ", enabled: " + isEnabled);
+        runOnUiThread(() -> {
+            if (isEnabled) {
+                Toast.makeText(this, status + " - Pronto para receber ocorrências", Toast.LENGTH_SHORT).show();
+            } else {
+                Toast.makeText(this, status, Toast.LENGTH_SHORT).show();
+            }
+        });
+    }
+    
+    @Override
+    public void onPeersAvailable(SimWifiP2pDeviceList peers) {
+        Log.d(TAG, "Peers available: " + peers.getDeviceList().size());
+        mPeers.clear();
+        mPeers.addAll(peers.getDeviceList());
+    }
+    
+    @Override
+    public void onGroupInfoAvailable(SimWifiP2pDeviceList devices, SimWifiP2pInfo groupInfo) {
+        Log.d(TAG, "Group info available - devices: " + devices.getDeviceList().size());
+    }
+    
+    @Override
+    public void onMessageReceived(String message) {
+        Log.d(TAG, "Message received: " + message);
+        handleReceivedMessage(message);
+    }
+    
+    @Override
+    public void onConnectionEstablished() {
+        Log.d(TAG, "P2P Connection established");
+        runOnUiThread(() -> {
+            Toast.makeText(this, "Conectado ao dispositivo", Toast.LENGTH_SHORT).show();
+        });
+    }
+    
+    @Override
+    public void onConnectionFailed(String error) {
+        Log.e(TAG, "P2P Connection failed: " + error);
+        runOnUiThread(() -> {
+            Toast.makeText(this, "Falha na conexão: " + error, Toast.LENGTH_LONG).show();
+        });
+    }
+    
+    @Override
+    public void onMessageSent() {
+        Log.d(TAG, "Message sent successfully");
+        runOnUiThread(() -> {
+            Toast.makeText(this, "Mensagem enviada com sucesso!", Toast.LENGTH_SHORT).show();
+        });
+    }
+    
+    @Override
+    public void onMessageSendFailed(String error) {
+        Log.e(TAG, "Message send failed: " + error);
+        runOnUiThread(() -> {
+            Toast.makeText(this, "Falha ao enviar: " + error, Toast.LENGTH_LONG).show();
+        });
+    }
+    
+    /**
+     * Processa mensagem recebida via P2P
+     */
+    private void handleReceivedMessage(String message) {
+        runOnUiThread(() -> {
+            try {
+                Log.d("P2P Message", "Received message: " + message);
+                
+                JSONObject ocorrenciaJson;
+                try {
+                    // Try as plain JSON first
+                    ocorrenciaJson = new JSONObject(message);
+                } catch (JSONException ex) {
+                    // If not JSON, request passphrase and try decryption
+                    if (sharePassphrase == null || sharePassphrase.isEmpty()) {
+                        final String originalMsg = message;
+                        promptForPassphrase(pass -> {
+                            sharePassphrase = pass;
+                            try {
+                                String decrypted = CryptoUtils.decryptFromBase64(originalMsg, sharePassphrase);
+                                handleReceivedMessage(decrypted);
+                            } catch (Exception decErr) {
+                                Log.e(TAG, "Falha ao desencriptar mensagem P2P", decErr);
+                                sharePassphrase = null; // Clear for next attempt
+                                Toast.makeText(this, "Falha na desencriptação da mensagem", Toast.LENGTH_LONG).show();
+                            }
+                        });
+                        return; // Will continue after user provides passphrase
+                    } else {
+                        try {
+                            String decrypted = CryptoUtils.decryptFromBase64(message, sharePassphrase);
+                            ocorrenciaJson = new JSONObject(decrypted);
+                        } catch (Exception decErr) {
+                            Log.e(TAG, "Falha ao desencriptar mensagem P2P com senha armazenada, solicitando nova senha", decErr);
+                            // Clear the stored passphrase and prompt for a new one
+                            sharePassphrase = null;
+                            final String originalMsg = message;
+                            promptForPassphrase(pass -> {
+                                sharePassphrase = pass;
+                                try {
+                                    String decrypted = CryptoUtils.decryptFromBase64(originalMsg, sharePassphrase);
+                                    handleReceivedMessage(decrypted);
+                                } catch (Exception decErr2) {
+                                    Log.e(TAG, "Falha ao desencriptar mensagem P2P com nova senha", decErr2);
+                                    sharePassphrase = null; // Clear again for next attempt
+                                    Toast.makeText(this, "Mensagem inválida ou chave incorreta", Toast.LENGTH_LONG).show();
+                                }
+                            });
+                            return;
+                        }
+                    }
+                }
+                
+                // Create a new Ocorrencia object from the received data
+                Ocorrencia ocorrenciaRecebida = new Ocorrencia();
+                ocorrenciaRecebida.setId(Integer.parseInt(ocorrenciaJson.getString("id")));
+                // Prefer descricao; fallback to titulo
+                String descricao = ocorrenciaJson.optString("descricao",
+                        ocorrenciaJson.optString("titulo", "Sem descrição"));
+                ocorrenciaRecebida.setDescricao(descricao);
+                // Optional local symbolic location
+                if (ocorrenciaJson.has("localizacaoSimbolica")) {
+                    ocorrenciaRecebida.setLocalizacaoSimbolica(
+                            ocorrenciaJson.optString("localizacaoSimbolica", null));
+                }
+                ocorrenciaRecebida.setUrgente(ocorrenciaJson.optBoolean("urgencia", false));
+                
+                // Parse date if available
+                try {
+                    String dataHoraStr = ocorrenciaJson.optString("dataHora");
+                    if (!dataHoraStr.isEmpty()) {
+                        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault());
+                        ocorrenciaRecebida.setDataHora(sdf.parse(dataHoraStr));
+                    }
+                } catch (Exception e) {
+                    Log.e(TAG, "Error parsing date", e);
+                }
+                
+                // Set location if available
+                if (ocorrenciaJson.has("latitude") && ocorrenciaJson.has("longitude")) {
+                    double lat = ocorrenciaJson.getDouble("latitude");
+                    double lng = ocorrenciaJson.getDouble("longitude");
+                    ocorrenciaRecebida.setLatitude(lat);
+                    ocorrenciaRecebida.setLongitude(lng);
+                }
+                
+                // Media paths if available
+                if (ocorrenciaJson.has("fotoPath")) {
+                    ocorrenciaRecebida.setFotoPath(ocorrenciaJson.optString("fotoPath", null));
+                }
+                
+                // Process Base64 photo if available
+                if (ocorrenciaJson.has("fotoBase64")) {
+                    String photoBase64 = ocorrenciaJson.getString("fotoBase64");
+                    String savedPhotoPath = saveBase64Photo(photoBase64);
+                    if (savedPhotoPath != null) {
+                        ocorrenciaRecebida.setFotoPath(savedPhotoPath);
+                        Log.d(TAG, "Photo saved from Base64 to: " + savedPhotoPath);
+                    }
+                }
+                
+                if (ocorrenciaJson.has("videoPath")) {
+                    ocorrenciaRecebida.setVideoPath(ocorrenciaJson.optString("videoPath", null));
+                }
+                
+                // Persist received occurrence locally but DO NOT sync (belongs to other user)
+                if (offlineHelper != null) {
+                    offlineHelper.saveReceivedSharedOcorrenciaAsync(
+                        ocorrenciaRecebida.getDescricao(),
+                        ocorrenciaRecebida.getLocalizacaoSimbolica(),
+                        ocorrenciaRecebida.getLatitude(),
+                        ocorrenciaRecebida.getLongitude(),
+                        ocorrenciaRecebida.isUrgente(),
+                        ocorrenciaRecebida.getFotoPath(),
+                        ocorrenciaRecebida.getVideoPath(),
+                        id -> runOnUiThread(() -> {
+                            Toast.makeText(this, "Ocorrência recebida e salva localmente (não será sincronizada)", Toast.LENGTH_SHORT).show();
+                            // Reload map to show new occurrence
+                            if (mMap != null) {
+                                loadOcorrenciasOnMap();
+                            }
+                        }),
+                        err -> runOnUiThread(() -> {
+                            Toast.makeText(this, "Falha ao salvar ocorrência recebida: " + err, Toast.LENGTH_LONG).show();
+                        })
+                    );
+                }
+
+                // Show a dialog to confirm viewing the received occurrence
+                new AlertDialog.Builder(this)
+                    .setTitle("Nova Ocorrência Recebida")
+                    .setMessage(String.format(Locale.getDefault(),
+                        "Deseja visualizar a ocorrência recebida?\n\n" +
+                        "Título: %s\n" +
+                        "Urgente: %s",
+                        ocorrenciaRecebida.getDescricao(),
+                        ocorrenciaRecebida.isUrgente() ? "Sim" : "Não"))
+                    .setPositiveButton("Visualizar", (dialog, which) -> {
+                        // Open the received occurrence in a new activity
+                        Intent intent = new Intent(TelaMapaOcorrencias.this, VisualizarOcorrencia.class);
+                        intent.putExtra("ocorrencia", ocorrenciaRecebida);
+                        startActivity(intent);
+                    })
+                    .setNegativeButton("Fechar", null)
+                    .setIcon(android.R.drawable.ic_dialog_info)
+                    .show();
+                
+            } catch (JSONException e) {
+                Log.e(TAG, "Error parsing received message", e);
+                Toast.makeText(this, "Erro ao processar ocorrência recebida", Toast.LENGTH_SHORT).show();
+            }
+        });
+    }
+    
+    /**
+     * Prompt user for passphrase
+     */
+    private void promptForPassphrase(java.util.function.Consumer<String> onOk) {
+        android.widget.EditText input = new android.widget.EditText(this);
+        input.setInputType(android.text.InputType.TYPE_CLASS_TEXT | android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD);
+        input.setHint("Digite a palavra-passe");
+        
+        new AlertDialog.Builder(this)
+            .setTitle("Palavra-passe necessária")
+            .setMessage("Esta mensagem está encriptada. Digite a palavra-passe para desencriptar:")
+            .setView(input)
+            .setPositiveButton("OK", (dialog, which) -> {
+                String passphrase = input.getText().toString().trim();
+                if (!passphrase.isEmpty()) {
+                    onOk.accept(passphrase);
+                } else {
+                    Toast.makeText(this, "Palavra-passe não pode estar vazia", Toast.LENGTH_SHORT).show();
+                }
+            })
+            .setNegativeButton("Cancelar", null)
+            .show();
+    }
+    
+    // ========== Lifecycle Methods ==========
+    
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        
+        // Cleanup location helper
+        if (locationHelper != null) {
+            locationHelper.onDestroy();
+        }
+        
+        // Cleanup P2P resources
+        if (mReceiver != null) {
+            try {
+                unregisterReceiver(mReceiver);
+            } catch (IllegalArgumentException e) {
+                Log.w(TAG, "Receiver not registered", e);
+            }
+            mReceiver = null;
+        }
+        
+        if (mCommManager != null) {
+            mCommManager.cleanup();
+            mCommManager = null;
+        }
+        
+        if (mBound) {
+            try {
+                unbindService(mConnection);
+            } catch (IllegalArgumentException e) {
+                Log.w(TAG, "Service not bound", e);
+            }
+            mBound = false;
+        }
+        
+        // Cleanup executor service
+        if (executorService != null && !executorService.isShutdown()) {
+            executorService.shutdown();
+        }
+
+        Log.d(TAG, "Activity destroyed, P2P and other resources cleaned up");
+    }
+    
+    /**
+     * Salva uma foto recebida em Base64 como arquivo local
+     */
+    private String saveBase64Photo(String base64Photo) {
+        if (base64Photo == null || base64Photo.isEmpty()) {
+            return null;
+        }
+        
+        try {
+            // Decode Base64 to byte array
+            byte[] photoBytes = Base64.decode(base64Photo, Base64.DEFAULT);
+            
+            // Create unique filename for received photo
+            String fileName = "received_photo_" + System.currentTimeMillis() + ".jpg";
+            File photoFile = new File(getExternalFilesDir(null), fileName);
+            
+            // Write bytes to file
+            java.io.FileOutputStream fos = new java.io.FileOutputStream(photoFile);
+            fos.write(photoBytes);
+            fos.close();
+            
+            Log.d(TAG, "Base64 photo saved to: " + photoFile.getAbsolutePath() + 
+                  " (size: " + photoFile.length() + " bytes)");
+            
+            return photoFile.getAbsolutePath();
+            
+        } catch (Exception e) {
+            Log.e(TAG, "Error saving Base64 photo", e);
+            return null;
         }
     }
 }

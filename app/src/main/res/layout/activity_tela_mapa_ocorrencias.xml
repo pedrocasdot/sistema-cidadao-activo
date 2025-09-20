@@ -15,7 +15,7 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="top|end"
-        android:layout_margin="16dp"
+        android:layout_margin="@dimen/activity_horizontal_margin"
         android:src="@drawable/logout_icon"
         android:contentDescription="Logout"
         app:tint="@color/white"
@@ -28,7 +28,7 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="bottom|end"
-        android:layout_marginEnd="16dp"
+        android:layout_marginEnd="@dimen/activity_horizontal_margin"
         android:layout_marginBottom="120dp"
         android:orientation="vertical">
 
@@ -36,7 +36,7 @@
             android:id="@+id/fabMinhasOcorrencias"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginBottom="16dp"
+            android:layout_marginBottom="@dimen/activity_horizontal_margin"
             android:src="@drawable/ic_list"
             android:contentDescription="Minhas Ocorrências"
             app:tint="@color/white"
@@ -54,7 +54,7 @@
             app:backgroundTint="@color/black"
             app:borderWidth="0dp"
             app:elevation="6dp"
-            app:maxImageSize="56dp"
+            app:maxImageSize="@dimen/icon_size_large"
             app:rippleColor="@color/white_20" />
 
     </LinearLayout>
@@ -62,23 +62,23 @@
     <androidx.cardview.widget.CardView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_margin="16dp"
-        app:cardCornerRadius="8dp"
-        app:cardElevation="4dp">
+        android:layout_margin="@dimen/activity_horizontal_margin"
+        app:cardCornerRadius="@dimen/card_corner_radius"
+        app:cardElevation="@dimen/card_elevation">
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:padding="16dp">
+            android:padding="@dimen/spacing_large">
 
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginBottom="8dp"
+                android:layout_marginBottom="@dimen/spacing_medium"
                 android:text="Mapa de Ocorrências"
                 android:textColor="@color/primary_color"
-                android:textSize="18sp"
+                android:textSize="@dimen/text_size_xlarge"
                 android:textStyle="bold" />
 
             <LinearLayout
@@ -86,26 +86,26 @@
                 android:layout_height="wrap_content"
                 android:gravity="center_vertical"
                 android:orientation="horizontal"
-                android:paddingTop="4dp">
+                android:paddingTop="@dimen/spacing_small">
 
                 <View
-                    android:layout_width="12dp"
-                    android:layout_height="12dp"
-                    android:layout_marginEnd="4dp"
+                    android:layout_width="@dimen/spacing_medium"
+                    android:layout_height="@dimen/spacing_medium"
+                    android:layout_marginEnd="@dimen/spacing_small"
                     android:background="@drawable/circle_red" />
 
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginEnd="16dp"
+                    android:layout_marginEnd="@dimen/spacing_large"
                     android:text="Urgente"
                     android:textColor="@color/gray_text"
-                    android:textSize="12sp" />
+                    android:textSize="@dimen/text_size_small" />
 
                 <View
-                    android:layout_width="12dp"
-                    android:layout_height="12dp"
-                    android:layout_marginEnd="4dp"
+                    android:layout_width="@dimen/spacing_medium"
+                    android:layout_height="@dimen/spacing_medium"
+                    android:layout_marginEnd="@dimen/spacing_small"
                     android:background="@drawable/circle_blue" />
 
                 <TextView
@@ -113,7 +113,7 @@
                     android:layout_height="wrap_content"
                     android:text="Não urgente"
                     android:textColor="@color/gray_text"
-                    android:textSize="12sp" />
+                    android:textSize="@dimen/text_size_small" />
             </LinearLayout>
 
         </LinearLayout>

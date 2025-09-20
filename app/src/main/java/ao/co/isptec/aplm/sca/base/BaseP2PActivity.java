@@ -16,10 +16,12 @@ import androidx.appcompat.app.AppCompatActivity;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.io.File;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
+import android.util.Base64;
 
 import ao.co.isptec.aplm.sca.P2PCommManager;
 import ao.co.isptec.aplm.sca.SimWifiP2pBroadcastReceiver;
@@ -216,6 +218,7 @@ public abstract class BaseP2PActivity extends AppCompatActivity implements P2PCo
                                 handleReceivedMessage(decryptedMessage);
                             } catch (Exception e) {
                                 Log.e(TAG, "Decryption failed", e);
+                                sharePassphrase = null; // Clear for next attempt
                                 Toast.makeText(this, "Falha na descriptografia. Senha incorreta?", Toast.LENGTH_LONG).show();
                             }
                         });
@@ -226,8 +229,21 @@ public abstract class BaseP2PActivity extends AppCompatActivity implements P2PCo
                             String decryptedMessage = CryptoUtils.decryptFromBase64(message, sharePassphrase);
                             ocorrenciaJson = new JSONObject(decryptedMessage);
                         } catch (Exception e) {
-                            Log.e(TAG, "Decryption failed with existing passphrase", e);
-                            Toast.makeText(this, "Falha na descriptografia", Toast.LENGTH_LONG).show();
+                            Log.e(TAG, "Decryption failed with existing passphrase, requesting new passphrase", e);
+                            // Clear the stored passphrase and prompt for a new one
+                            sharePassphrase = null;
+                            final String originalMsg = message;
+                            promptForPassphrase(pass -> {
+                                sharePassphrase = pass;
+                                try {
+                                    String decryptedMessage = CryptoUtils.decryptFromBase64(originalMsg, sharePassphrase);
+                                    handleReceivedMessage(decryptedMessage);
+                                } catch (Exception decErr2) {
+                                    Log.e(TAG, "Decryption failed with new passphrase", decErr2);
+                                    sharePassphrase = null; // Clear again for next attempt
+                                    Toast.makeText(this, "Mensagem inválida ou chave incorreta", Toast.LENGTH_LONG).show();
+                                }
+                            });
                             return;
                         }
                     }
@@ -290,6 +306,17 @@ public abstract class BaseP2PActivity extends AppCompatActivity implements P2PCo
             if (json.has("latitude")) ocorrencia.setLatitude(json.getDouble("latitude"));
             if (json.has("longitude")) ocorrencia.setLongitude(json.getDouble("longitude"));
             if (json.has("fotoPath")) ocorrencia.setFotoPath(json.getString("fotoPath"));
+            
+            // Process Base64 photo if available
+            if (json.has("fotoBase64")) {
+                String photoBase64 = json.getString("fotoBase64");
+                String savedPhotoPath = saveBase64Photo(photoBase64);
+                if (savedPhotoPath != null) {
+                    ocorrencia.setFotoPath(savedPhotoPath);
+                    Log.d(TAG, "Photo saved from Base64 to: " + savedPhotoPath);
+                }
+            }
+            
             if (json.has("videoPath")) ocorrencia.setVideoPath(json.getString("videoPath"));
             
             // Parse date
@@ -382,5 +409,37 @@ public abstract class BaseP2PActivity extends AppCompatActivity implements P2PCo
         }
         
         Log.d(TAG, "P2P resources cleaned up in " + getClass().getSimpleName());
+    }
+    
+    /**
+     * Salva uma foto recebida em Base64 como arquivo local
+     */
+    protected String saveBase64Photo(String base64Photo) {
+        if (base64Photo == null || base64Photo.isEmpty()) {
+            return null;
+        }
+        
+        try {
+            // Decode Base64 to byte array
+            byte[] photoBytes = Base64.decode(base64Photo, Base64.DEFAULT);
+            
+            // Create unique filename for received photo
+            String fileName = "received_photo_" + System.currentTimeMillis() + ".jpg";
+            File photoFile = new File(getExternalFilesDir(null), fileName);
+            
+            // Write bytes to file
+            java.io.FileOutputStream fos = new java.io.FileOutputStream(photoFile);
+            fos.write(photoBytes);
+            fos.close();
+            
+            Log.d(TAG, "Base64 photo saved to: " + photoFile.getAbsolutePath() + 
+                  " (size: " + photoFile.length() + " bytes)");
+            
+            return photoFile.getAbsolutePath();
+            
+        } catch (Exception e) {
+            Log.e(TAG, "Error saving Base64 photo", e);
+            return null;
+        }
     }
 }

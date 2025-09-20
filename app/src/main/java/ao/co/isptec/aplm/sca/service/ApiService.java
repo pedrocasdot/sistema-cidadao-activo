@@ -229,6 +229,6 @@ public class ApiService {
     }
 
     private static String buildFileUrl(String filename) {
-        return "http://171.20.10.5:8081/incidents/files/" + filename;
+        return "http://172.20.10.5:8081/incidents/files/" + filename;
     }
 }

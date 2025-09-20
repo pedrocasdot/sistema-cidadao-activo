@@ -25,10 +25,13 @@ import android.graphics.Color;
 import org.json.JSONObject;
 import org.json.JSONException;
 
+import java.io.ByteArrayOutputStream;
+import java.io.File;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import android.util.Base64;
 
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
@@ -699,22 +702,11 @@ public class VisualizarOcorrencia extends AppCompatActivity implements OnMapRead
                     progressDialog.dismiss();
                     
                     if (finalSuccess) {
-                    // Update share counter
-                    ocorrencia.incrementarPartilha();
-                    updateShareCounterUI();
-                    
-                    // Save updated counter to database
-                    if (ocorrencia.getId() > 0) {
-                        offlineHelper.updateShareCounterAsync(
-                            ocorrencia.getId(),
-                            ocorrencia.getContadorPartilha(),
-                            () -> Log.d("P2P_Share", "Share counter updated in database"),
-                            error -> Log.e("P2P_Share", "Error updating share counter: " + error)
-                        );
-                    }
-                    
-                    // Show success message
-                    showSuccessDialog("Sucesso", "Ocorrência partilhada com sucesso!");
+                // Note: Share counter will be updated in onMessageSent callback
+                // to avoid double counting
+                
+                // Show success message
+                showSuccessDialog("Sucesso", "Ocorrência partilhada com sucesso!");
                 } else {
                     // Show error message
                     showErrorDialog("Falha na Partilha", 
@@ -744,10 +736,19 @@ public class VisualizarOcorrencia extends AppCompatActivity implements OnMapRead
         // Add media information if available
         if (ocorrencia.getFotoPath() != null && !ocorrencia.getFotoPath().isEmpty()) {
             json.put("fotoPath", ocorrencia.getFotoPath());
+            
+            // Convert photo to Base64 and include in JSON
+            String photoBase64 = convertPhotoToBase64(ocorrencia.getFotoPath());
+            if (photoBase64 != null) {
+                json.put("fotoBase64", photoBase64);
+                Log.d(TAG, "Photo converted to Base64 for sharing (size: " + photoBase64.length() + " chars)");
+            }
         }
         
         if (ocorrencia.getVideoPath() != null && !ocorrencia.getVideoPath().isEmpty()) {
             json.put("videoPath", ocorrencia.getVideoPath());
+            // Note: Video files are typically too large for P2P sharing via JSON
+            // Consider implementing separate file transfer for videos if needed
         }
         
         return json;
@@ -786,9 +787,10 @@ public class VisualizarOcorrencia extends AppCompatActivity implements OnMapRead
             // Try to reload from database to get updated counter
             offlineHelper.getAllOcorrenciasAsync(ocorrenciasList -> {
                 for (OcorrenciaEntity entity : ocorrenciasList) {
-                    if (entity.getId() == ocorrencia.getId()) {
+                    if (entity.getId() == (long) ocorrencia.getId()) {
                         // Update the current ocorrencia with database values
                         ocorrencia.setContadorPartilha(entity.getContadorPartilha());
+                        Log.d(TAG, "Reloaded share counter from database: " + entity.getContadorPartilha());
                         break;
                     }
                 }
@@ -849,6 +851,7 @@ public class VisualizarOcorrencia extends AppCompatActivity implements OnMapRead
                                 handleReceivedMessage(decrypted);
                             } catch (Exception decErr) {
                                 Log.e(TAG, "Falha ao desencriptar mensagem P2P", decErr);
+                                sharePassphrase = null; // Clear for next attempt
                                 Toast.makeText(this, "Falha na desencriptação da mensagem", Toast.LENGTH_LONG).show();
                             }
                         });
@@ -858,8 +861,21 @@ public class VisualizarOcorrencia extends AppCompatActivity implements OnMapRead
                             String decrypted = CryptoUtils.decryptFromBase64(message, sharePassphrase);
                             ocorrenciaJson = new JSONObject(decrypted);
                         } catch (Exception decErr) {
-                            Log.e(TAG, "Falha ao desencriptar/parsing mensagem P2P", decErr);
-                            Toast.makeText(this, "Mensagem inválida ou chave incorreta", Toast.LENGTH_LONG).show();
+                            Log.e(TAG, "Falha ao desencriptar mensagem P2P com senha armazenada, solicitando nova senha", decErr);
+                            // Clear the stored passphrase and prompt for a new one
+                            sharePassphrase = null;
+                            final String originalMsg = message;
+                            promptForPassphrase(pass -> {
+                                sharePassphrase = pass;
+                                try {
+                                    String decrypted = CryptoUtils.decryptFromBase64(originalMsg, sharePassphrase);
+                                    handleReceivedMessage(decrypted);
+                                } catch (Exception decErr2) {
+                                    Log.e(TAG, "Falha ao desencriptar mensagem P2P com nova senha", decErr2);
+                                    sharePassphrase = null; // Clear again for next attempt
+                                    Toast.makeText(this, "Mensagem inválida ou chave incorreta", Toast.LENGTH_LONG).show();
+                                }
+                            });
                             return;
                         }
                     }
@@ -902,6 +918,17 @@ public class VisualizarOcorrencia extends AppCompatActivity implements OnMapRead
                 if (ocorrenciaJson.has("fotoPath")) {
                     ocorrenciaRecebida.setFotoPath(ocorrenciaJson.optString("fotoPath", null));
                 }
+                
+                // Process Base64 photo if available
+                if (ocorrenciaJson.has("fotoBase64")) {
+                    String photoBase64 = ocorrenciaJson.getString("fotoBase64");
+                    String savedPhotoPath = saveBase64Photo(photoBase64);
+                    if (savedPhotoPath != null) {
+                        ocorrenciaRecebida.setFotoPath(savedPhotoPath);
+                        Log.d(TAG, "Photo saved from Base64 to: " + savedPhotoPath);
+                    }
+                }
+                
                 if (ocorrenciaJson.has("videoPath")) {
                     ocorrenciaRecebida.setVideoPath(ocorrenciaJson.optString("videoPath", null));
                 }
@@ -1072,6 +1099,16 @@ public class VisualizarOcorrencia extends AppCompatActivity implements OnMapRead
             ocorrencia.incrementarPartilha();
             updateShareCounterUI();
             
+            // Save updated counter to database
+            if (ocorrencia.getId() > 0 && offlineHelper != null) {
+                offlineHelper.updateShareCounterAsync(
+                    ocorrencia.getId(),
+                    ocorrencia.getContadorPartilha(),
+                    () -> Log.d(TAG, "Share counter updated in database: " + ocorrencia.getContadorPartilha()),
+                    error -> Log.e(TAG, "Error updating share counter: " + error)
+                );
+            }
+            
             Toast.makeText(this, "Ocorrência partilhada com sucesso!", Toast.LENGTH_SHORT).show();
 
             // Notify via email about the share
@@ -1152,6 +1189,103 @@ public class VisualizarOcorrencia extends AppCompatActivity implements OnMapRead
         }
 
         Log.d(TAG, "P2P resources cleaned up");
+    }
+    
+    /**
+     * Converte uma foto para Base64 para envio via P2P
+     */
+    private String convertPhotoToBase64(String photoPath) {
+        if (photoPath == null || photoPath.isEmpty()) {
+            return null;
+        }
+        
+        try {
+            // Check if it's a URL (from server) - skip conversion for URLs
+            if (photoPath.startsWith("http://") || photoPath.startsWith("https://")) {
+                Log.d(TAG, "Skipping Base64 conversion for URL: " + photoPath);
+                return null;
+            }
+            
+            // Load bitmap from local file
+            File photoFile = new File(photoPath);
+            if (!photoFile.exists()) {
+                Log.w(TAG, "Photo file does not exist: " + photoPath);
+                return null;
+            }
+            
+            // Decode with size limit to avoid memory issues
+            BitmapFactory.Options options = new BitmapFactory.Options();
+            options.inJustDecodeBounds = true;
+            BitmapFactory.decodeFile(photoPath, options);
+            
+            // Calculate sample size to reduce memory usage
+            int sampleSize = 1;
+            int maxSize = 800; // Max width/height for P2P sharing
+            while (options.outWidth / sampleSize > maxSize || options.outHeight / sampleSize > maxSize) {
+                sampleSize *= 2;
+            }
+            
+            options.inJustDecodeBounds = false;
+            options.inSampleSize = sampleSize;
+            
+            Bitmap bitmap = BitmapFactory.decodeFile(photoPath, options);
+            if (bitmap == null) {
+                Log.w(TAG, "Could not decode bitmap from: " + photoPath);
+                return null;
+            }
+            
+            // Convert to byte array
+            ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+            bitmap.compress(Bitmap.CompressFormat.JPEG, 70, byteArrayOutputStream); // Compress to reduce size
+            byte[] byteArray = byteArrayOutputStream.toByteArray();
+            
+            // Convert to Base64
+            String base64String = Base64.encodeToString(byteArray, Base64.DEFAULT);
+            
+            Log.d(TAG, "Photo converted to Base64 - Original size: " + photoFile.length() + 
+                  " bytes, Base64 size: " + base64String.length() + " chars");
+            
+            return base64String;
+            
+        } catch (OutOfMemoryError e) {
+            Log.e(TAG, "Out of memory converting photo to Base64", e);
+            return null;
+        } catch (Exception e) {
+            Log.e(TAG, "Error converting photo to Base64", e);
+            return null;
+        }
+    }
+    
+    /**
+     * Salva uma foto recebida em Base64 como arquivo local
+     */
+    private String saveBase64Photo(String base64Photo) {
+        if (base64Photo == null || base64Photo.isEmpty()) {
+            return null;
+        }
+        
+        try {
+            // Decode Base64 to byte array
+            byte[] photoBytes = Base64.decode(base64Photo, Base64.DEFAULT);
+            
+            // Create unique filename for received photo
+            String fileName = "received_photo_" + System.currentTimeMillis() + ".jpg";
+            File photoFile = new File(getExternalFilesDir(null), fileName);
+            
+            // Write bytes to file
+            java.io.FileOutputStream fos = new java.io.FileOutputStream(photoFile);
+            fos.write(photoBytes);
+            fos.close();
+            
+            Log.d(TAG, "Base64 photo saved to: " + photoFile.getAbsolutePath() + 
+                  " (size: " + photoFile.length() + " bytes)");
+            
+            return photoFile.getAbsolutePath();
+            
+        } catch (Exception e) {
+            Log.e(TAG, "Error saving Base64 photo", e);
+            return null;
+        }
     }
 
 
